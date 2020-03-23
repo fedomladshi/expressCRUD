@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width" />
+     <title>Список пользователей</title>
+     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+</head>
+
+<body>
+     <h2>Список пользователей</h2>
+     <form name="userForm">
+          <input type="hidden" name="id" value="0" />
+          <div class="form-group">
+               <label for="name">Имя:</label>
+               <input class="form-control" name="name" />
+          </div>
+          <div class="form-group">
+               <label for="age">Возраст:</label>
+               <input class="form-control" name="age" />
+          </div>
+          <div class="form-group">
+               <label for="dateOfBirth">Дата рождения:</label>
+               <input class="form-control" name="dateOfBirth" />
+          </div>
+          <div class="form-group">
+               <label for="maritalStatus">Семейное положение:</label>
+               <input class="form-control" name="maritalStatus" />
+          </div>
+          <div class="panel-body">
+               <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
+               <a id="reset" class="btn btn-sm btn-primary">Сбросить</a>
+          </div>
+     </form>
+     <table class="table table-condensed table-striped table-bordered">
+          <thead>
+               <tr>
+                    <th>Id</th>
+                    <th>Имя</th>
+                    <th>возраст</th>
+                    <th>Дата рождения</th>
+                    <th>Семейное положение</th>
+                    <th></th>
+               </tr>
+          </thead>
+          <tbody>
+          </tbody>
+     </table>
+
+     <script>
+          let removeLink = null;
+          let form = document.getElementsByName('userForm')[0];
+          // Получение всех пользователей
+          function GetUsers() {
+               fetch('/users', {
+                         method: 'GET',
+                         headers: {
+                              'Content-Type': "application/json",
+                         }
+                    }).then(response => response.json())
+                    .then(data => {
+                         let rows = "";
+                         data.map((user) => {
+                              document.querySelector("table tbody").appendChild(row(user));
+                         })
+                    })
+          }
+          //Отправка формы
+          form.addEventListener('submit', (e) => {
+               e.preventDefault();
+               let id = document.getElementsByName('id')[0].value;
+               let name = document.getElementsByName('name')[0].value;
+               let age = document.getElementsByName('age')[0].value;
+               let dateOfBirth = document.getElementsByName('dateOfBirth')[0].value;
+               let maritalStatus = document.getElementsByName('maritalStatus')[0].value;
+               if (id == 0) {
+                    CreateUser(id, name, age, dateOfBirth, maritalStatus);
+               } else {
+                    EditUser(id, name, age, dateOfBirth, maritalStatus);
+               }
+          })
+
+          function CreateUser(id, userName, userAge, dateOfBirth, maritalStatus) {
+               const data = {
+                    name: userName,
+                    age: userAge,
+                    dateOfBirth: dateOfBirth,
+                    maritalStatus: maritalStatus
+               }
+               fetch(`/users`, {
+                         method: 'POST',
+                         headers: {
+                              "Content-Type": "application/json"
+                         },
+                         body: JSON.stringify(data)
+                    })
+                    .then((response) => {
+                         return response.json();
+                    })
+                    .then((response) => {
+                         reset();
+                         let tr = row({
+                              ...response.addedUser
+                         });
+                         document.querySelector("table tbody").appendChild(tr);
+                    })
+          }
+
+          // Удаление пользователя
+          function DeleteUser(id) {
+               fetch(`/users/${id}`, {
+                         method: 'DELETE'
+                    })
+                    .then((response) => {
+                         return response.json();
+                    })
+                    .then((response) => {
+                         if (response.message == 'error') {
+                              console.log(response.message)
+                         } else {
+                              let tr = document.querySelector(`tr[data-rowid='${response.id}']`);
+                              document.querySelector("table tbody").removeChild(tr);
+                         }
+
+                    })
+          }
+
+          // // Получение одного пользователя
+          function GetUser(id) {
+               fetch(`/users/${id}`, {
+                         method: 'GET',
+                         headers: {
+                              'Content-Type': "application/json",
+                         }
+                    })
+                    .then((response) => {
+                         return response.json()
+                    })
+                    .then((response) => {
+                         let user = response.user[0];
+                         let form = document.forms["userForm"];
+                         form.elements["id"].value = user.id;
+                         form.elements["name"].value = user.name;
+                         form.elements["age"].value = user.age;
+                         form.elements["dateOfBirth"].value = user.dateOfBirth;
+                         form.elements["maritalStatus"].value = user.maritalStatus;
+                    })
+          }
+          // Изменение пользователя
+          function EditUser(id, name, age, dateOfBirth, maritalStatus) {
+               const data = {
+                    id,
+                    name,
+                    age,
+                    dateOfBirth: dateOfBirth,
+                    maritalStatus: maritalStatus
+               }
+               fetch('/users', {
+                         method: "PUT",
+                         headers: {
+                              'Content-Type': "application/json",
+                         },
+                         body: JSON.stringify(data)
+                    })
+                    .then((response) => {
+                         return response.json();
+                    })
+                    .then((response) => {
+                         reset();
+                         const user = {
+                              id,
+                              name,
+                              age,
+                              dateOfBirth,
+                              maritalStatus
+                         };
+                         let elem = document.querySelector("tr[data-rowid='" + id + "']");
+                         elem.after(row(user));
+                         elem.remove();
+                    })
+          }
+
+          // сброс формы
+          function reset() {
+               let form = document.forms["userForm"];
+               form.reset();
+               form.elements["id"].value = 0;
+          }
+
+          //    // создание строки для таблицы
+          var row = function (user) {
+               let tr = document.createElement('tr');
+               tr.dataset.rowid = user.id;
+               let tdId = document.createElement('td');
+               tdId.innerHTML = user.id;
+               let tdName = document.createElement('td');
+               tdName.innerHTML = user.name;
+               let tdAge = document.createElement('td');
+               tdAge.innerHTML = user.age;
+               let tdDate = document.createElement('td');
+               tdDate.innerHTML = user.dateOfBirth;
+               let tdStatus = document.createElement('td');
+               tdStatus.innerHTML = user.maritalStatus;
+               let tdButtons = document.createElement('td');
+               let linkChange = document.createElement('a');
+               linkChange.className = 'editLink';
+               linkChange.dataset.id = user.id;
+               linkChange.innerHTML = 'Изменить';
+               let span = document.createElement('span');
+               span.innerHTML = ' | ';
+               let linkDelete = document.createElement('a');
+               linkDelete.className = 'removeLink';
+               linkDelete.dataset.id = user.id;
+               linkDelete.innerHTML = 'Удалить';
+
+               tr.appendChild(tdId);
+               tr.appendChild(tdName);
+               tr.appendChild(tdAge);
+               tr.appendChild(tdDate);
+               tr.appendChild(tdStatus);
+               tr.appendChild(tdButtons);
+
+               tdButtons.appendChild(linkChange);
+               tdButtons.appendChild(span);
+               tdButtons.appendChild(linkDelete);
+               return tr;
+          }
+          // сброс значений формы
+          document.getElementById('reset').addEventListener('click', ((e) => {
+               e.preventDefault();
+               reset();
+          }));
+
+          // нажимаем на ссылку Изменить
+          document.body.addEventListener("click", (e) => {
+               if (e.target.className === "editLink") {
+                    GetUser(e.target.dataset.id);
+               }
+          })
+          // нажимаем на ссылку Удалить
+          document.body.addEventListener("click", (e) => {
+               if (e.target.className === "removeLink") {
+                    DeleteUser(e.target.dataset.id);
+               }
+          })
+
+          // загрузка пользователей
+          GetUsers();
+     </script>
+</body>
+
+</html>
